@@ -50,8 +50,10 @@ module Incremental = struct
   let metric (what:what_to_show Incr.t) ~(w:int Incr.t) ~(h: int Incr.t) ~(d:int Incr.t)
     : int Incr.t 
     =
-    ignore what; ignore w; ignore h; ignore d;
-    failwith "implement me!"
+    Incr.bind what ~f:(fun what -> match what with
+      | Volume -> Incr.map3 w h d ~f:(fun w h d -> w * h * d)
+      | Footprint -> Incr.map2 w d ~f:(fun w d -> w * d)
+    )
   ;;    
 
   (* The structure of [run] should follow that of [simple_run] above
@@ -64,7 +66,26 @@ module Incremental = struct
      - [compute] should then get its value using [Incr.Observer.value_exn].
   *)
   let run () : unit =
-    failwith "implement me!"
+    let ref = Incr.Var.create in
+    let (!) = Incr.Var.watch in
+    let (:=) = Incr.Var.set in
+    let height = ref 50 in
+    let width  = ref 120 in
+    let depth  = ref 250 in
+    let what = ref Footprint in
+    let obs =
+        Incr.observe (metric !what ~w:!width ~h:!height ~d:!depth)
+    in
+    let compute () =
+      Incr.stabilize ();
+      printf "%d\n" (Incr.Observer.value_exn obs)
+    in
+    compute ();
+    height := 150;
+    width := 90;
+    compute ();
+    what := Volume;
+    compute ();
   ;;
 
 end
